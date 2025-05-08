@@ -4,10 +4,16 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import re
 import html
-from sklearn.preprocessing import LabelEncoder
-from transformers import DistilBertTokenizerFast, DistilBertForSequenceClassification, Trainer, TrainingArguments
-from datasets import Dataset
 import torch
+from datasets import Dataset
+from sklearn.preprocessing import LabelEncoder
+from transformers import DistilBertTokenizerFast, DistilBertForSequenceClassification, Trainer, TrainingArguments, DataCollatorWithPadding
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score, f1_score, classification_report, confusion_matrix
+from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split
+
 
 pd.set_option('display.max_colwidth', 200)
 ```
@@ -48,288 +54,6 @@ df.info()
 ```python
 df.describe()
 ```
-
-
-
-
-
-  <div id="df-3b2c8e75-3889-44e2-81d2-c52017e6f54e" class="colab-df-container">
-    <div>
-<style scoped>
-    .dataframe tbody tr th:only-of-type {
-        vertical-align: middle;
-    }
-
-    .dataframe tbody tr th {
-        vertical-align: top;
-    }
-
-    .dataframe thead th {
-        text-align: right;
-    }
-</style>
-<table border="1" class="dataframe">
-  <thead>
-    <tr style="text-align: right;">
-      <th></th>
-      <th>sentiment</th>
-      <th>tweetid</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <th>count</th>
-      <td>43943.000000</td>
-      <td>4.394300e+04</td>
-    </tr>
-    <tr>
-      <th>mean</th>
-      <td>0.853924</td>
-      <td>8.367966e+17</td>
-    </tr>
-    <tr>
-      <th>std</th>
-      <td>0.853543</td>
-      <td>8.568506e+16</td>
-    </tr>
-    <tr>
-      <th>min</th>
-      <td>-1.000000</td>
-      <td>5.926334e+17</td>
-    </tr>
-    <tr>
-      <th>25%</th>
-      <td>0.000000</td>
-      <td>7.970376e+17</td>
-    </tr>
-    <tr>
-      <th>50%</th>
-      <td>1.000000</td>
-      <td>8.402301e+17</td>
-    </tr>
-    <tr>
-      <th>75%</th>
-      <td>1.000000</td>
-      <td>9.020003e+17</td>
-    </tr>
-    <tr>
-      <th>max</th>
-      <td>2.000000</td>
-      <td>9.667024e+17</td>
-    </tr>
-  </tbody>
-</table>
-</div>
-    <div class="colab-df-buttons">
-
-  <div class="colab-df-container">
-    <button class="colab-df-convert" onclick="convertToInteractive('df-3b2c8e75-3889-44e2-81d2-c52017e6f54e')"
-            title="Convert this dataframe to an interactive table."
-            style="display:none;">
-
-  <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960">
-    <path d="M120-120v-720h720v720H120Zm60-500h600v-160H180v160Zm220 220h160v-160H400v160Zm0 220h160v-160H400v160ZM180-400h160v-160H180v160Zm440 0h160v-160H620v160ZM180-180h160v-160H180v160Zm440 0h160v-160H620v160Z"/>
-  </svg>
-    </button>
-
-  <style>
-    .colab-df-container {
-      display:flex;
-      gap: 12px;
-    }
-
-    .colab-df-convert {
-      background-color: #E8F0FE;
-      border: none;
-      border-radius: 50%;
-      cursor: pointer;
-      display: none;
-      fill: #1967D2;
-      height: 32px;
-      padding: 0 0 0 0;
-      width: 32px;
-    }
-
-    .colab-df-convert:hover {
-      background-color: #E2EBFA;
-      box-shadow: 0px 1px 2px rgba(60, 64, 67, 0.3), 0px 1px 3px 1px rgba(60, 64, 67, 0.15);
-      fill: #174EA6;
-    }
-
-    .colab-df-buttons div {
-      margin-bottom: 4px;
-    }
-
-    [theme=dark] .colab-df-convert {
-      background-color: #3B4455;
-      fill: #D2E3FC;
-    }
-
-    [theme=dark] .colab-df-convert:hover {
-      background-color: #434B5C;
-      box-shadow: 0px 1px 3px 1px rgba(0, 0, 0, 0.15);
-      filter: drop-shadow(0px 1px 2px rgba(0, 0, 0, 0.3));
-      fill: #FFFFFF;
-    }
-  </style>
-
-    <script>
-      const buttonEl =
-        document.querySelector('#df-3b2c8e75-3889-44e2-81d2-c52017e6f54e button.colab-df-convert');
-      buttonEl.style.display =
-        google.colab.kernel.accessAllowed ? 'block' : 'none';
-
-      async function convertToInteractive(key) {
-        const element = document.querySelector('#df-3b2c8e75-3889-44e2-81d2-c52017e6f54e');
-        const dataTable =
-          await google.colab.kernel.invokeFunction('convertToInteractive',
-                                                    [key], {});
-        if (!dataTable) return;
-
-        const docLinkHtml = 'Like what you see? Visit the ' +
-          '<a target="_blank" href=https://colab.research.google.com/notebooks/data_table.ipynb>data table notebook</a>'
-          + ' to learn more about interactive tables.';
-        element.innerHTML = '';
-        dataTable['output_type'] = 'display_data';
-        await google.colab.output.renderOutput(dataTable, element);
-        const docLink = document.createElement('div');
-        docLink.innerHTML = docLinkHtml;
-        element.appendChild(docLink);
-      }
-    </script>
-  </div>
-
-
-    <div id="df-ff592861-8e45-4aad-b4c1-dd1206f6c714">
-      <button class="colab-df-quickchart" onclick="quickchart('df-ff592861-8e45-4aad-b4c1-dd1206f6c714')"
-                title="Suggest charts"
-                style="display:none;">
-
-<svg xmlns="http://www.w3.org/2000/svg" height="24px"viewBox="0 0 24 24"
-     width="24px">
-    <g>
-        <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/>
-    </g>
-</svg>
-      </button>
-
-<style>
-  .colab-df-quickchart {
-      --bg-color: #E8F0FE;
-      --fill-color: #1967D2;
-      --hover-bg-color: #E2EBFA;
-      --hover-fill-color: #174EA6;
-      --disabled-fill-color: #AAA;
-      --disabled-bg-color: #DDD;
-  }
-
-  [theme=dark] .colab-df-quickchart {
-      --bg-color: #3B4455;
-      --fill-color: #D2E3FC;
-      --hover-bg-color: #434B5C;
-      --hover-fill-color: #FFFFFF;
-      --disabled-bg-color: #3B4455;
-      --disabled-fill-color: #666;
-  }
-
-  .colab-df-quickchart {
-    background-color: var(--bg-color);
-    border: none;
-    border-radius: 50%;
-    cursor: pointer;
-    display: none;
-    fill: var(--fill-color);
-    height: 32px;
-    padding: 0;
-    width: 32px;
-  }
-
-  .colab-df-quickchart:hover {
-    background-color: var(--hover-bg-color);
-    box-shadow: 0 1px 2px rgba(60, 64, 67, 0.3), 0 1px 3px 1px rgba(60, 64, 67, 0.15);
-    fill: var(--button-hover-fill-color);
-  }
-
-  .colab-df-quickchart-complete:disabled,
-  .colab-df-quickchart-complete:disabled:hover {
-    background-color: var(--disabled-bg-color);
-    fill: var(--disabled-fill-color);
-    box-shadow: none;
-  }
-
-  .colab-df-spinner {
-    border: 2px solid var(--fill-color);
-    border-color: transparent;
-    border-bottom-color: var(--fill-color);
-    animation:
-      spin 1s steps(1) infinite;
-  }
-
-  @keyframes spin {
-    0% {
-      border-color: transparent;
-      border-bottom-color: var(--fill-color);
-      border-left-color: var(--fill-color);
-    }
-    20% {
-      border-color: transparent;
-      border-left-color: var(--fill-color);
-      border-top-color: var(--fill-color);
-    }
-    30% {
-      border-color: transparent;
-      border-left-color: var(--fill-color);
-      border-top-color: var(--fill-color);
-      border-right-color: var(--fill-color);
-    }
-    40% {
-      border-color: transparent;
-      border-right-color: var(--fill-color);
-      border-top-color: var(--fill-color);
-    }
-    60% {
-      border-color: transparent;
-      border-right-color: var(--fill-color);
-    }
-    80% {
-      border-color: transparent;
-      border-right-color: var(--fill-color);
-      border-bottom-color: var(--fill-color);
-    }
-    90% {
-      border-color: transparent;
-      border-bottom-color: var(--fill-color);
-    }
-  }
-</style>
-
-      <script>
-        async function quickchart(key) {
-          const quickchartButtonEl =
-            document.querySelector('#' + key + ' button');
-          quickchartButtonEl.disabled = true;  // To prevent multiple clicks.
-          quickchartButtonEl.classList.add('colab-df-spinner');
-          try {
-            const charts = await google.colab.kernel.invokeFunction(
-                'suggestCharts', [key], {});
-          } catch (error) {
-            console.error('Error during call to suggestCharts:', error);
-          }
-          quickchartButtonEl.classList.remove('colab-df-spinner');
-          quickchartButtonEl.classList.add('colab-df-quickchart-complete');
-        }
-        (() => {
-          let quickchartButtonEl =
-            document.querySelector('#df-ff592861-8e45-4aad-b4c1-dd1206f6c714 button');
-          quickchartButtonEl.style.display =
-            google.colab.kernel.accessAllowed ? 'block' : 'none';
-        })();
-      </script>
-    </div>
-
-    </div>
-  </div>
-
 
 
 
@@ -388,62 +112,13 @@ plt.show()
     
 
 
-## Data preprocessing
+### 3. Data preprocessing
 Data preprocessing is a crucial step for NLP tasks. In this step, I clean the tweet text by removing URLs, mentions, hashtags, and any non-alphabetic characters. I also convert all text to lowercase and strip any extra spaces. This ensures that the text is ready for tokenization and model input.
 
 
 ```python
 df['message'].head(5)
 ```
-
-
-
-
-<div>
-<style scoped>
-    .dataframe tbody tr th:only-of-type {
-        vertical-align: middle;
-    }
-
-    .dataframe tbody tr th {
-        vertical-align: top;
-    }
-
-    .dataframe thead th {
-        text-align: right;
-    }
-</style>
-<table border="1" class="dataframe">
-  <thead>
-    <tr style="text-align: right;">
-      <th></th>
-      <th>message</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <th>0</th>
-      <td>@tiniebeany climate change is an interesting hustle as it was global warming but the planet stopped warming for 15 yes while the suv boom</td>
-    </tr>
-    <tr>
-      <th>1</th>
-      <td>RT @NatGeoChannel: Watch #BeforeTheFlood right here, as @LeoDiCaprio travels the world to tackle climate change https://t.co/LkDehj3tNn httÃ¢â‚¬Â¦</td>
-    </tr>
-    <tr>
-      <th>2</th>
-      <td>Fabulous! Leonardo #DiCaprio's film on #climate change is brilliant!!! Do watch. https://t.co/7rV6BrmxjW via @youtube</td>
-    </tr>
-    <tr>
-      <th>3</th>
-      <td>RT @Mick_Fanning: Just watched this amazing documentary by leonardodicaprio on climate change. We all think thisÃ¢â‚¬Â¦ https://t.co/kNSTE8K8im</td>
-    </tr>
-    <tr>
-      <th>4</th>
-      <td>RT @cnalive: Pranita Biswasi, a Lutheran from Odisha, gives testimony on effects of climate change &amp;amp; natural disasters on the poÃ¢â‚¬Â¦</td>
-    </tr>
-  </tbody>
-</table>
-</div><br><label><b>dtype:</b> object</label>
 
 
 
@@ -522,7 +197,7 @@ df['clean_tweet'].head()
 
 
 
-### Encoding the Labels
+### 4. Encoding the Labels
 Since machine learning models require numerical inputs, I encode the sentiment labels using LabelEncoder. This transforms the four sentiment labels into numeric values (0, 1, 2, 3) so they can be used as target labels for training the model.
 
 
@@ -531,30 +206,22 @@ le = LabelEncoder()
 df['label'] = le.fit_transform(df['sentiment'])  # -1 to 2 mapped to 0 to 3
 ```
 
-### Train-Test Split
+### 5. Train-Test Split
 To evaluate the model’s performance effectively, I split the dataset into training and testing sets using an 80/20 split. The training set is used to train the model, and the test set is used to evaluate the model’s ability to generalize to unseen data. I ensure the split maintains the class distribution by using stratify.
 
 
 ```python
-from sklearn.model_selection import train_test_split
-
 X = df['clean_tweet']
 y = df['label']
 X_train, X_test, y_train, y_test = train_test_split(X, y, stratify=y, test_size=0.2, random_state=42)
 
 ```
 
-### Baseline Model - TF-IDF + Logistic Regression
+### 6. Baseline Model - TF-IDF + Logistic Regression
 As a baseline model, I use a combination of TF-IDF (Term Frequency-Inverse Document Frequency) and Logistic Regression. First, I vectorize the tweet text using TfidfVectorizer, which transforms the text into numerical feature vectors. Then, I train a Logistic Regression model on the transformed features and evaluate its performance on the test set. I calculate metrics such as accuracy, F1-score, and present a confusion matrix to assess its classification performance.
 
 
 ```python
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score, f1_score, classification_report, confusion_matrix
-from sklearn.model_selection import train_test_split
-import seaborn as sns
-import matplotlib.pyplot as plt
 
 # Encode sentiment labels (if not already done)
 from sklearn.preprocessing import LabelEncoder
@@ -610,7 +277,7 @@ plt.show()
     
 
 
-### Fine-tune Transformer Model (DistilBERT)
+### 7. Fine-tune Transformer Model (DistilBERT)
 Next, I fine-tune a pre-trained DistilBERT model, which is a lighter and faster version of BERT (Bidirectional Encoder Representations from Transformers). DistilBERT is capable of handling complex language patterns and context, making it a great choice for sentiment analysis tasks. I tokenize the tweet text using the DistilBertTokenizerFast, and then fine-tune the model using the Trainer API from Hugging Face's transformers library. The model is trained to predict sentiment classes based on the input tweet text.
 
 
@@ -634,39 +301,6 @@ test_ds.set_format(type='torch', columns=['input_ids', 'attention_mask', 'label'
 
 ```
 
-    /usr/local/lib/python3.11/dist-packages/huggingface_hub/utils/_auth.py:94: UserWarning: 
-    The secret `HF_TOKEN` does not exist in your Colab secrets.
-    To authenticate with the Hugging Face Hub, create a token in your settings tab (https://huggingface.co/settings/tokens), set it as secret in your Google Colab and restart your session.
-    You will be able to reuse this secret in all of your notebooks.
-    Please note that authentication is recommended but still optional to access public models or datasets.
-      warnings.warn(
-    
-
-
-    tokenizer_config.json:   0%|          | 0.00/48.0 [00:00<?, ?B/s]
-
-
-
-    vocab.txt:   0%|          | 0.00/232k [00:00<?, ?B/s]
-
-
-
-    tokenizer.json:   0%|          | 0.00/466k [00:00<?, ?B/s]
-
-
-
-    config.json:   0%|          | 0.00/483 [00:00<?, ?B/s]
-
-
-
-    Map:   0%|          | 0/35154 [00:00<?, ? examples/s]
-
-
-
-    Map:   0%|          | 0/8789 [00:00<?, ? examples/s]
-
-
-
 ```python
 model = DistilBertForSequenceClassification.from_pretrained(
     'distilbert-base-uncased',
@@ -675,22 +309,7 @@ model = DistilBertForSequenceClassification.from_pretrained(
 
 ```
 
-    Xet Storage is enabled for this repo, but the 'hf_xet' package is not installed. Falling back to regular HTTP download. For better performance, install the package with: `pip install huggingface_hub[hf_xet]` or `pip install hf_xet`
-    WARNING:huggingface_hub.file_download:Xet Storage is enabled for this repo, but the 'hf_xet' package is not installed. Falling back to regular HTTP download. For better performance, install the package with: `pip install huggingface_hub[hf_xet]` or `pip install hf_xet`
-    
-
-
-    model.safetensors:   0%|          | 0.00/268M [00:00<?, ?B/s]
-
-
-    Some weights of DistilBertForSequenceClassification were not initialized from the model checkpoint at distilbert-base-uncased and are newly initialized: ['classifier.bias', 'classifier.weight', 'pre_classifier.bias', 'pre_classifier.weight']
-    You should probably TRAIN this model on a down-stream task to be able to use it for predictions and inference.
-    
-
-
 ```python
-from sklearn.metrics import accuracy_score, f1_score
-from transformers import DataCollatorWithPadding
 def compute_metrics(eval_pred):
     logits, labels = eval_pred
     preds = logits.argmax(axis=1)
@@ -725,49 +344,6 @@ trainer = Trainer(
 trainer.train()
 trainer.evaluate()
 ```
-
-    [34m[1mwandb[0m: [33mWARNING[0m The `run_name` is currently set to the same value as `TrainingArguments.output_dir`. If this was not intended, please specify a different run name by setting the `TrainingArguments.run_name` parameter.
-    
-
-
-    <IPython.core.display.Javascript object>
-
-
-    [34m[1mwandb[0m: Logging into wandb.ai. (Learn how to deploy a W&B server locally: https://wandb.me/wandb-server)
-    [34m[1mwandb[0m: You can find your API key in your browser here: https://wandb.ai/authorize?ref=models
-    wandb: Paste an API key from your profile and hit enter:
-
-     ··········
-    
-
-    [34m[1mwandb[0m: [33mWARNING[0m If you're specifying your api key in code, ensure this code is not shared publicly.
-    [34m[1mwandb[0m: [33mWARNING[0m Consider setting the WANDB_API_KEY environment variable, or running `wandb login` from the command line.
-    [34m[1mwandb[0m: No netrc file found, creating one.
-    [34m[1mwandb[0m: Appending key for api.wandb.ai to your netrc file: /root/.netrc
-    [34m[1mwandb[0m: Currently logged in as: [33mpranithachilvari1234[0m ([33mpranithachilvari1234-university-of-arizona[0m) to [32mhttps://api.wandb.ai[0m. Use [1m`wandb login --relogin`[0m to force relogin
-    
-
-
-Tracking run with wandb version 0.19.10
-
-
-
-Run data is saved locally in <code>/content/wandb/run-20250508_031821-asftvu9x</code>
-
-
-
-Syncing run <strong><a href='https://wandb.ai/pranithachilvari1234-university-of-arizona/huggingface/runs/asftvu9x' target="_blank">./results</a></strong> to <a href='https://wandb.ai/pranithachilvari1234-university-of-arizona/huggingface' target="_blank">Weights & Biases</a> (<a href='https://wandb.me/developer-guide' target="_blank">docs</a>)<br>
-
-
-
-View project at <a href='https://wandb.ai/pranithachilvari1234-university-of-arizona/huggingface' target="_blank">https://wandb.ai/pranithachilvari1234-university-of-arizona/huggingface</a>
-
-
-
-View run at <a href='https://wandb.ai/pranithachilvari1234-university-of-arizona/huggingface/runs/asftvu9x' target="_blank">https://wandb.ai/pranithachilvari1234-university-of-arizona/huggingface/runs/asftvu9x</a>
-
-
-
 
     <div>
 
@@ -833,7 +409,7 @@ View run at <a href='https://wandb.ai/pranithachilvari1234-university-of-arizona
 
 
 
-### Model Evaluation Summary
+### 8. Model Evaluation Summary
 To evaluate the effectiveness of different modeling approaches for multiclass sentiment classification on the Climate Change Tweet Dataset, I compared a traditional machine learning model (TF-IDF + Logistic Regression) with a fine-tuned transformer-based model (DistilBERT).
 
 #### Baseline Model: TF-IDF + Logistic Regression
